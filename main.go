@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -18,7 +18,7 @@ type Post struct {
 
 var (
 	posts   = make(map[int]Post) // hold our posts in memory
-	nextId  = 1                  // variable helps us to make unique post ids when making new post
+	nextID  = 1                  // variable helps us to make unique post ids when making new post
 	postsMu sync.Mutex           // mutex to lock programwhen changing to the posts map (concurrent request causes race condition --> access the same resources at the same time)
 
 )
@@ -28,7 +28,7 @@ var (
 func main() {
 	// setup handlers for the /posts and /posts routes
 	http.HandleFunc("/posts", postsHandler)
-	http.HandleFunc("/post", postsHandler)
+	http.HandleFunc("/posts/", postHandler)
 
 	fmt.Println("Server is running at http://localhost:8080")
 	/*
@@ -58,6 +58,11 @@ func postsHandler(w http.ResponseWriter, r *http.Request) { // (return JSON, inf
 }
 
 func postHandler(w http.ResponseWriter, r *http.Request) { // (return JSON, information about the incoming request)
+	// Debug printing
+	idStr := r.URL.Path[len("/posts/"):]
+	fmt.Printf("Path: %s\n", r.URL.Path)
+	fmt.Printf("Extracted ID string: %s\n", idStr)
+	//
 	id, err := strconv.Atoi(r.URL.Path[len("/posts/"):])
 	if err != nil {
 		http.Error(w, "Invalid post ID", http.StatusBadRequest)
@@ -96,7 +101,7 @@ func handlePostPosts(w http.ResponseWriter, r *http.Request) {
 	var p Post
 
 	// Read the entire body into a byte slice
-	body, err := ioutil.ReadAll(r.Body)
+	body, err := io.ReadAll(r.Body)
 
 	if err != nil {
 		http.Error(w, "Error reading request body", http.StatusInternalServerError)
@@ -112,8 +117,8 @@ func handlePostPosts(w http.ResponseWriter, r *http.Request) {
 	postsMu.Lock()
 	defer postsMu.Unlock()
 
-	p.ID = nextId
-	nextId++
+	p.ID = nextID
+	nextID++
 	posts[p.ID] = p
 
 	w.Header().Set("Content-Type", "application/json")
