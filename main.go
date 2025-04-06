@@ -81,22 +81,6 @@ func postHandler(w http.ResponseWriter, r *http.Request) { // (return JSON, info
 	}
 }
 
-/*
-func editHandler(w http.ResponseWriter, r *http.Request) { // (return JSON, information about the incoming request)
-	id, err := strconv.Atoi(r.URL.Path[len("/edit/"):])
-	if err != nil {
-		http.Error(w, "Invalid post ID", http.StatusBadRequest)
-		return
-	}
-	switch r.Method {
-	case "PUT":
-		handleEditPost(w, r, id)
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-*/
-
 func handleGetPosts(w http.ResponseWriter, r *http.Request) {
 	/*
 		Using mutex to lock the server --> manipulate the posts map without
