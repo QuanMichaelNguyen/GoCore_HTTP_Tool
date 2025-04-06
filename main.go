@@ -29,6 +29,7 @@ func main() {
 	// setup handlers for the /posts and /posts routes
 	http.HandleFunc("/posts", postsHandler)
 	http.HandleFunc("/posts/", postHandler)
+	http.HandleFunc("/edit/", editHandler)
 
 	fmt.Println("Server is running at http://localhost:8080")
 	/*
@@ -73,6 +74,20 @@ func postHandler(w http.ResponseWriter, r *http.Request) { // (return JSON, info
 		handleGetPost(w, r, id)
 	case "DELETE":
 		handleDeletePost(w, r, id)
+	default:
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func editHandler(w http.ResponseWriter, r *http.Request) { // (return JSON, information about the incoming request)
+	id, err := strconv.Atoi(r.URL.Path[len("/edit/"):])
+	if err != nil {
+		http.Error(w, "Invalid post ID", http.StatusBadRequest)
+		return
+	}
+	switch r.Method {
+	case "PUT":
+		handleEditPost(w, r, id)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -154,4 +169,37 @@ func handleDeletePost(w http.ResponseWriter, r *http.Request, id int) {
 	}
 	delete(posts, id)
 	w.WriteHeader(http.StatusOK)
+}
+
+func handleEditPost(w http.ResponseWriter, r *http.Request, id int) { // (return JSON, information about the incoming request)
+	postsMu.Lock()
+	defer postsMu.Unlock()
+
+	p, ok := posts[id]
+	if !ok {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
+	}
+	// Decode the request body into a map[string]interface{}
+	var updates map[string]interface{}
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	if newBody, ok := updates["Body"]; ok {
+		if bodyStr, ok := newBody.(string); ok {
+			p.Body = bodyStr
+		} else {
+			http.Error(w, "Invalid 'body' type", http.StatusBadRequest)
+			return
+		}
+	}
+
+	posts[id] = p
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(p)
+
 }
