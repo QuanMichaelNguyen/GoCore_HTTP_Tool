@@ -29,7 +29,7 @@ func main() {
 	// setup handlers for the /posts and /posts routes
 	http.HandleFunc("/posts", postsHandler)
 	http.HandleFunc("/posts/", postHandler)
-	http.HandleFunc("/edit/", editHandler)
+	// http.HandleFunc("/edit/", editHandler)
 
 	fmt.Println("Server is running at http://localhost:8080")
 	/*
@@ -74,11 +74,14 @@ func postHandler(w http.ResponseWriter, r *http.Request) { // (return JSON, info
 		handleGetPost(w, r, id)
 	case "DELETE":
 		handleDeletePost(w, r, id)
+	case "PUT":
+		handleEditPost(w, r, id)
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
+/*
 func editHandler(w http.ResponseWriter, r *http.Request) { // (return JSON, information about the incoming request)
 	id, err := strconv.Atoi(r.URL.Path[len("/edit/"):])
 	if err != nil {
@@ -92,6 +95,7 @@ func editHandler(w http.ResponseWriter, r *http.Request) { // (return JSON, info
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
 }
+*/
 
 func handleGetPosts(w http.ResponseWriter, r *http.Request) {
 	/*
