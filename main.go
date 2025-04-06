@@ -169,17 +169,17 @@ func handleEditPost(w http.ResponseWriter, r *http.Request, id int) { // (return
 		return
 	}
 	// Decode the request body into a map[string]interface{}
-	var updates map[string]interface{}
-	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil {
+	var updates map[string]interface{}                               // updates = {string key: any types of values}
+	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil { // reads and decodes the JSON body of the request (r.Body) into the updates map
 		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
-
+	// checks if the updates map contains a key "Body". If it does, it assigns the value associated with this key to newBody
 	if newBody, ok := updates["Body"]; ok {
 		if bodyStr, ok := newBody.(string); ok {
 			p.Body = bodyStr
 		} else {
-			http.Error(w, "Invalid 'body' type", http.StatusBadRequest)
+			http.Error(w, "We need string type", http.StatusBadRequest)
 			return
 		}
 	}
