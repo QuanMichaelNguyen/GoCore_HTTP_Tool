@@ -1,14 +1,49 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
+
+	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+var (
+	client  *mongo.Client
+	postCol *mongo.Collection
+	ctx     = context.Background()
+)
+
+func initMongoDB() {
+	var err error
+	db_error := godotenv.Load()
+	if db_error != nil {
+		log.Fatal("Error loading .env file")
+	}
+	mongoURL := os.Getenv("MONGODB_URL")
+	if mongoURL == "" {
+		log.Fatal("MONGODB_URL is not set")
+	}
+	clientOptions := options.Client().ApplyURI(mongoURL)
+	client, err = mongo.Connect(ctx, clientOptions)
+	if err != nil {
+		log.Fatal("MongoDB Connection Error:", err)
+	}
+	err = client.Ping(ctx, nil)
+	if err != nil {
+		log.Fatal("MongoDB Ping Error:", err)
+	}
+	postCol = client.Database("Go").Collection("posts")
+	fmt.Println("Connected to MongoDB!")
+}
 
 // define c Post class with ID, Body attributes
 type Post struct {
@@ -27,6 +62,7 @@ var (
 // Entry point for module
 func main() {
 	// setup handlers for the /posts and /posts routes
+	initMongoDB()
 	http.HandleFunc("/posts", postsHandler)
 	http.HandleFunc("/posts/", postHandler)
 	// http.HandleFunc("/edit/", editHandler)
