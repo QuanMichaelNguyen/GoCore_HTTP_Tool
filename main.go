@@ -12,6 +12,7 @@ import (
 	"sync"
 
 	"github.com/joho/godotenv"
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -126,12 +127,35 @@ func handleGetPosts(w http.ResponseWriter, r *http.Request) {
 
 	defer postsMu.Unlock() // defer until the code finished executing
 
-	// Copying the posts to a new slice of type
-	ps := make([]Post, 0, len(posts))
-	// Loop through posts map and append post Struct to ps
-	for _, p := range posts {
-		ps = append(ps, p)
+	cursor, err := postCol.Find(ctx, bson.M{})
+	if err != nil {
+		http.Error(w, "Error fetching posts", http.StatusInternalServerError)
+		return
 	}
+	defer cursor.Close(ctx)
+
+	// Copying the posts to a new slice of type
+	// ps := make([]Post, 0, len(posts))
+
+	/*
+		When you execute a query like postCol.Find(ctx, bson.M{}), it returns a cursor.
+		This cursor points to the first document in the query result and can be used to \
+		traverse the subsequent documents.
+
+		cursor === pointer
+
+	*/
+
+	var ps []Post
+	if err := cursor.All(ctx, &ps); err != nil {
+		http.Error(w, "Error decoding posts", http.StatusInternalServerError)
+		return
+	}
+
+	// Loop through posts map and append post Struct to ps
+	// for _, p := range posts {
+	// 	ps = append(ps, p)
+	// }
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(ps)
 }
@@ -158,7 +182,8 @@ func handlePostPosts(w http.ResponseWriter, r *http.Request) {
 
 	p.ID = nextID
 	nextID++
-	posts[p.ID] = p
+	// posts[p.ID] = p
+	postCol.InsertOne(ctx, p)
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
@@ -169,10 +194,14 @@ func handleGetPost(w http.ResponseWriter, r *http.Request, id int) {
 	postsMu.Lock()
 	defer postsMu.Unlock()
 
-	p, ok := posts[id]
-
-	if !ok {
-		http.Error(w, "Post not found", http.StatusNotFound)
+	var p Post
+	/*
+		Decode method takes the result of the FindOne query and
+		decodes the retrieved document into a Go variable
+	*/
+	err := postCol.FindOne(ctx, bson.M{"id": id}).Decode(&p)
+	if err != nil {
+		http.Error(w, "Id not found", http.StatusNotFound)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -186,12 +215,16 @@ func handleDeletePost(w http.ResponseWriter, r *http.Request, id int) {
 	// If you use a two-value assignment for accessing a
 	// value on a map, you get the value first then an
 	// "exists" variable.
-	_, ok := posts[id]
-	if !ok {
+	res, err := postCol.DeleteOne(ctx, bson.M{"id": id})
+	if err != nil {
 		http.Error(w, "Post not found", http.StatusNotFound)
 		return
 	}
-	delete(posts, id)
+	// delete(posts, id)
+	if res.DeletedCount == 0 {
+		http.Error(w, "No ID to be deleted", http.StatusNotFound)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
 }
 
@@ -199,11 +232,6 @@ func handleEditPost(w http.ResponseWriter, r *http.Request, id int) { // (return
 	postsMu.Lock()
 	defer postsMu.Unlock()
 
-	p, ok := posts[id]
-	if !ok {
-		http.Error(w, "Post not found", http.StatusNotFound)
-		return
-	}
 	// Decode the request body into a map[string]interface{}
 	var updates map[string]interface{}                               // updates = {string key: any types of values}
 	if err := json.NewDecoder(r.Body).Decode(&updates); err != nil { // reads and decodes the JSON body of the request (r.Body) into the updates map
@@ -211,19 +239,27 @@ func handleEditPost(w http.ResponseWriter, r *http.Request, id int) { // (return
 		return
 	}
 	// checks if the updates map contains a key "Body". If it does, it assigns the value associated with this key to newBody
-	if newBody, ok := updates["Body"]; ok {
-		if bodyStr, ok := newBody.(string); ok {
-			p.Body = bodyStr
-		} else {
-			http.Error(w, "We need string type", http.StatusBadRequest)
-			return
-		}
+	// if newBody, ok := updates["Body"]; ok {
+	// 	if bodyStr, ok := newBody.(string); ok {
+	// 		p.Body = bodyStr
+	// 	} else {
+	// 		http.Error(w, "We need string type", http.StatusBadRequest)
+	// 		return
+	// 	}
+	// }
+
+	// posts[id] = p
+	update := bson.M{"$set": updates}
+	res, err := postCol.UpdateOne(ctx, bson.M{"id": id}, update)
+	if err != nil {
+		http.Error(w, "Error updating post", http.StatusInternalServerError)
+		return
+	}
+	if res.MatchedCount == 0 {
+		http.Error(w, "Post not found", http.StatusNotFound)
+		return
 	}
 
-	posts[id] = p
-
-	w.Header().Set("Content-Type", "application/json")
+	handleGetPost(w, r, id)
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(p)
-
 }
