@@ -43,7 +43,15 @@ func initMongoDB() {
 	if mongoURL == "" {
 		log.Fatal("MONGODB_URL is not set")
 	}
-	clientOptions := options.Client().ApplyURI(mongoURL).SetMaxPoolSize(100).SetMinPoolSize(5).SetMaxConnIdleTime(30 * time.Second).SetTLSConfig(&tls.Config{})
+	// Create context with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	// Configure TLS properly
+	tlsConfig := &tls.Config{
+		MinVersion: tls.VersionTLS12,
+	}
+	clientOptions := options.Client().ApplyURI(mongoURL).SetMaxPoolSize(100).SetMinPoolSize(5).SetMaxConnIdleTime(30 * time.Second).SetTLSConfig(tlsConfig)
 	client, err = mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		log.Fatal("MongoDB Connection Error:", err)
