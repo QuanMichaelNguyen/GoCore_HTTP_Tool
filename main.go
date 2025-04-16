@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -42,7 +43,7 @@ func initMongoDB() {
 	if mongoURL == "" {
 		log.Fatal("MONGODB_URL is not set")
 	}
-	clientOptions := options.Client().ApplyURI(mongoURL).SetMaxPoolSize(100).SetMinPoolSize(5).SetMaxConnIdleTime(30 * time.Second)
+	clientOptions := options.Client().ApplyURI(mongoURL).SetMaxPoolSize(100).SetMinPoolSize(5).SetMaxConnIdleTime(30 * time.Second).SetTLSConfig(&tls.Config{})
 	client, err = mongo.Connect(ctx, clientOptions)
 	if err != nil {
 		log.Fatal("MongoDB Connection Error:", err)
