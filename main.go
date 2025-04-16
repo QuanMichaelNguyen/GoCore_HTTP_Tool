@@ -38,12 +38,6 @@ func initMongoDB() {
 	// if db_error != nil {
 	// 	log.Fatal("Error loading .env file")
 	// }
-	// Only try to load .env locally
-	if os.Getenv("ENV") != "production" {
-		if err := godotenv.Load(); err != nil {
-			log.Println("No .env file found, continuing...")
-		}
-	}
 	mongoURL := os.Getenv("MONGODB_URL")
 	if mongoURL == "" {
 		log.Fatal("MONGODB_URL is not set")
@@ -222,6 +216,11 @@ func getCachedAllPosts() ([]Post, bool) {
 // Implementing server
 // Entry point for module
 func main() {
+	if os.Getenv("ENV") != "production" {
+		if err := godotenv.Load(); err != nil {
+			log.Println("No .env file found, continuing...")
+		}
+	}
 	// setup handlers for the /posts and /posts routes
 	initMongoDB()
 	initRedis()
