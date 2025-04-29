@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-redis/redis"
 	"github.com/joho/godotenv"
+	"github.com/rs/cors"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 )
@@ -70,10 +71,24 @@ func main() {
 	fmt.Println("MongoDB Collection initialized:", db.PostCol)
 	cache.InitRedis()
 	initNextID()
+
+	// Create a new mux router
+	mux := http.NewServeMux()
+
 	// setup handlers for the /posts and /posts routes
-	http.HandleFunc("/posts", handlers.PostsHandler)
-	http.HandleFunc("/posts/", handlers.PostHandler)
-	// http.HandleFunc("/edit/", editHandler)
+	mux.HandleFunc("/posts", handlers.PostsHandler)
+	mux.HandleFunc("/posts/", handlers.PostHandler)
+
+	// Configure CORS
+	c := cors.New(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3000", "http://localhost:3001"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Content-Type", "Authorization"},
+		AllowCredentials: true,
+	})
+
+	// Wrap the mux with CORS middleware
+	handler := c.Handler(mux)
 
 	// Graceful shutdown handling
 	ctx, cancel := context.WithCancel(context.Background())
@@ -112,5 +127,5 @@ func main() {
 		==> start an HTTP server
 
 	*/
-	log.Fatal((http.ListenAndServe(":8080", nil)))
+	log.Fatal(http.ListenAndServe(":8080", handler))
 }
